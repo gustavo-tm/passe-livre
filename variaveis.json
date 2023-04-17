@@ -1,0 +1,12 @@
+{
+    "ano": "Ano dos dados",
+    "id_municipio": "Codigo IBGE 7 do municipio",
+    "turno": "Primeiro ou segundo turno",
+    "abstencao": "Proporcao entre abstencoes e aptos",
+    "competitividade": "Quao proximos foram os resultados entre primeiro e segundo candidatos",
+    "pib_pc": "PIB per capita do municipio",
+    "veiculos_pc": "Numero de veiculos per capita, incluindo carros, motos, onibus, etc.",
+    "ideb": "Nota da educacao dos anos finais do ensino fundal nas escolas publicas",
+    "participacao": "Proporcao de aptos na populacao",
+    "pib_governo": "Proporcao dos gastos do governo no PIB municipal"
+}
