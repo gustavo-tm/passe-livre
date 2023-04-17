@@ -7,23 +7,21 @@ import json
 anos = "(2002, 2006, 2010, 2014, 2018, 2022)"
 
 def abstencao():
-    """Download de abstenções e aptos para cada turno"""
-
     query = f'''
     SELECT id_municipio, ano, turno, aptos, abstencoes
     FROM `basedosdados.br_tse_eleicoes.detalhes_votacao_municipio` 
     WHERE ano IN {anos} AND cargo = 'presidente'
     '''
 
-    (bd.read_sql(query, billing_project_id="python-371123")
-    .dropna()
-    .astype(int)
-    ).to_csv("data/abstencao.csv")
+    (
+    bd.read_sql(query, billing_project_id="python-371123")
+    .dropna().astype(int)
+    .to_csv("data/abstencao.csv")
+    )
 
 def competitividade():
 
     def calculate_k(turno):
-
         query = f'''
         SELECT id_municipio, numero_candidato, ano, votos, turno
         FROM `basedosdados.br_tse_eleicoes.resultados_candidato_municipio` 
@@ -32,8 +30,7 @@ def competitividade():
 
         return (
         bd.read_sql(query, billing_project_id="python-371123")
-        .dropna()
-        .astype(int)
+        .dropna().astype(int)
         .assign(numero_candidato = lambda _: _.numero_candidato == 13)
         .pivot_table(index = ["id_municipio", "ano"], columns = ["numero_candidato"], values = "votos")
         .reset_index().rename_axis("", axis = 1)
@@ -42,10 +39,12 @@ def competitividade():
         .filter(["id_municipio", "ano", "competitividade", "turno"])
         )
     
-    (pd.concat([
+    (
+    pd.concat([
         calculate_k(turno = 1), 
         calculate_k(turno = 2)])
-    ).to_csv("data/competitividade.csv")
+    .to_csv("data/t-competitividade.csv")
+    )
 
 def ideb():
     query = '''
@@ -54,15 +53,11 @@ def ideb():
     WHERE ensino = 'fundamental' AND anos_escolares = 'finais (6-9)' AND rede = 'publica' AND ano IN (2001, 2005, 2009, 2013, 2017, 2021)
     '''
 
-    ideb = (
+    (
         bd.read_sql(query, billing_project_id="python-371123")
         .assign(ano = lambda _: _.ano + 1)
+        .to_csv("data/ideb.csv")
     )
-    
-    pd.concat([
-        ideb.assign(turno = 1),
-        ideb.assign(turno = 2)
-    ]).to_csv("data/ideb.csv")
     
 def pib():
     query = '''
@@ -77,10 +72,7 @@ def pib():
     #Enquanto não saem os dados de 2022
     pib = pib.assign(ano = lambda _: np.where(_.ano == 2020, 2022, _.ano))
 
-    pd.concat([
-        pib.assign(turno = 1),
-        pib.assign(turno = 2)
-    ]).to_csv("data/pib.csv")
+    pib.to_csv("data/pib.csv")
 
 def populacao():
     query = f'''
@@ -94,10 +86,7 @@ def populacao():
     #Enquanto não saem os dados de 2022
     populacao = populacao.assign(ano = lambda _: np.where(_.ano == 2021, 2022, _.ano))
 
-    pd.concat([
-        populacao.assign(turno = 1),
-        populacao.assign(turno = 2)
-    ]).to_csv("data/populacao.csv")
+    populacao.to_csv("data/populacao.csv")
 
 def frota():
     query = f'''
@@ -111,26 +100,33 @@ def frota():
     #Enquanto não saem os dados de 2022
     frota = frota.assign(ano = lambda _: np.where(_.ano == 2020, 2022, _.ano))
 
-    pd.concat([
-        frota.assign(turno = 1),
-        frota.assign(turno = 2)
-    ]).to_csv("data/frota.csv")
+    frota.to_csv("data/frota.csv")
 
 def download_bd():
-    bases = [abstencao, competitividade, ideb, pib, populacao, frota]
+    """Efetua o download de todas as bases necessarias"""
+
+    bases = [abstencao, competitividade, ideb, pib, populacao]
     
     for base in bases:
         print(str(base))
         base()
 
 def merge():
+    """Junta todas as bases baixadas"""
+
     df = pd.read_csv("data/abstencao.csv", index_col=0)
     for base in [base for base in glob.glob("data/*") if base != "data\\abstencao.csv"]:
         print(base)
-        df = pd.merge(df, pd.read_csv(base, index_col=0), on = ["id_municipio", "ano", "turno"], how = "left")
+        
+        if base[5:7] == "t-":
+            merge_on = ["id_municipio", "ano", "turno"]
+        else:
+            merge_on = ["id_municipio", "ano"]
+
+        df = pd.merge(df, pd.read_csv(base, index_col=0), on = merge_on, how = "left")
     
-    contas = json.loads(open("variaveis_calculadas.json").read())
-    variaveis = json.loads(open("variaveis.json").read()).keys()
+    contas = json.loads(open("variable_operations.json").read())
+    variaveis = json.loads(open("variables.json").read()).keys()
     
     filtro = list(pd.read_csv("filter.csv").id_municipio.unique())
 
@@ -143,5 +139,5 @@ def merge():
      )
 
 
-# download_bd()
+download_bd()
 merge()
