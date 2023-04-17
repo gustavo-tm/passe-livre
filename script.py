@@ -124,10 +124,10 @@ def download_bd():
         base()
 
 def merge():
-    df = pd.DataFrame().assign(id_municipio = np.nan, ano = np.nan, turno = np.nan)
-    for base in [base for base in glob.glob("data/*")]:
+    df = pd.read_csv("data/abstencao.csv", index_col=0)
+    for base in [base for base in glob.glob("data/*") if base != "data\\abstencao.csv"]:
         print(base)
-        df = pd.merge(df, pd.read_csv(base, index_col=0), on = ["id_municipio", "ano", "turno"], how = "outer")
+        df = pd.merge(df, pd.read_csv(base, index_col=0), on = ["id_municipio", "ano", "turno"], how = "left")
     
     contas = json.loads(open("variaveis_calculadas.json").read())
     variaveis = json.loads(open("variaveis.json").read()).keys()
@@ -139,3 +139,6 @@ def merge():
      .to_csv("data.csv", index = False)
      )
 
+
+# download_bd()
+merge()
