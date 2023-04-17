@@ -132,7 +132,10 @@ def merge():
     contas = json.loads(open("variaveis_calculadas.json").read())
     variaveis = json.loads(open("variaveis.json").read()).keys()
     
+    filtro = list(pd.read_csv("filter.csv").id_municipio.unique())
+
     (df
+     .query(f"id_municipio not in {filtro}")
      .sort_values(["ano", "id_municipio", "turno"])
      .assign(**{variavel: eval(conta) for variavel, conta in contas.items()})
      .filter(variaveis)
