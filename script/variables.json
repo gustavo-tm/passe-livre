@@ -1,0 +1,13 @@
+{
+    "ano": "Ano dos dados",
+    "id_municipio": "Codigo IBGE 7 do municipio",
+    "turno": "Primeiro ou segundo turno",
+    "abstencao": "Proporcao entre abstencoes e aptos",
+    "passe_livre": "Caso o municipio apresentou passe livre no dia da eleicao",
+    "populacao": "Populacao do municipio",
+    "competitividade": "Quao proximos foram os resultados entre primeiro e segundo candidatos",
+    "pib_pc": "PIB per capita do municipio",
+    "ideb": "Nota da educacao dos anos finais do ensino fundamental nas escolas publicas",
+    "beneficiados": "Quantas pessoas no municipio tem para cada votante",
+    "pib_governo": "Proporcao dos gastos do governo no PIB municipal"
+}

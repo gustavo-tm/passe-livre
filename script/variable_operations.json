@@ -1,0 +1,6 @@
+{
+    "pib_pc": "lambda _: _.pib / _.populacao",
+    "abstencao": "lambda _: _.abstencoes / _.aptos",
+    "beneficiados": "lambda _: _.populacao / _.aptos",
+    "pib_governo": "lambda _: _.va_adespss / _.pib"
+}
