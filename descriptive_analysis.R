@@ -17,7 +17,7 @@ gg <- ggplot() +
   scale_fill_gradient2(midpoint = median(df$abstencao), low = "#5C5B60", mid = "#B3DBCF", high = "#D28673")+
   theme_void()
 
-ggsave("descritiva/map.png", gg, dpi = 600, bg='transparent')
+ggsave("desciptive_analysis/map.png", gg, dpi = 600, bg='transparent')
 
 gg <- ggplot(df, aes(x = factor(ano), y = abstencao)) +
   geom_violin() +
@@ -26,6 +26,6 @@ gg <- ggplot(df, aes(x = factor(ano), y = abstencao)) +
   stat_summary(fun = "mean", geom = "crossbar", width = .5) +
   theme_void()
 
-ggsave("descritiva/abstencao.png", gg, dpi = 600, bg='transparent')
+ggsave("desciptive_analysis/abstencao.png", gg, dpi = 600, bg='transparent')
 
 
