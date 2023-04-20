@@ -111,6 +111,15 @@ def download_bd():
         print(str(base))
         base()
 
+def controle_tratamento():
+    df = pd.read_csv("script/passe_livre.csv", index_col = 0)
+    (df
+     .query("ano == 2022").assign(tratamento = lambda _: _.passe_livre)
+     .filter(["id_municipio", "turno", "tratamento"])
+     .merge(df, on = ["id_municipio", "turno"], how = "right")
+     .to_csv("data/t-passe_livre.csv")
+    )
+
 def merge():
     """Junta todas as bases baixadas"""
 
@@ -139,5 +148,6 @@ def merge():
      )
 
 
-download_bd()
+# download_bd()
+controle_tratamento()
 merge()

@@ -2,6 +2,7 @@
     "ano": "Ano dos dados",
     "id_municipio": "Codigo IBGE 7 do municipio",
     "turno": "Primeiro ou segundo turno",
+    "tratamento": "Se o municipio faz ou nao parte do grupo de tratamento",
     "abstencao": "Proporcao entre abstencoes e aptos",
     "passe_livre": "Caso o municipio apresentou passe livre no dia da eleicao",
     "populacao": "Populacao do municipio",
