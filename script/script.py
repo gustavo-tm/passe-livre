@@ -112,12 +112,13 @@ def download_bd():
         base()
 
 def controle_tratamento():
-    df = pd.read_csv("script/passe_livre.csv", index_col = 0)
-    (df
-     .query("ano == 2022").assign(tratamento = lambda _: _.passe_livre)
-     .filter(["id_municipio", "turno", "tratamento"])
-     .merge(df, on = ["id_municipio", "turno"], how = "right")
-     .to_csv("data/t-passe_livre.csv")
+    df = pd.read_csv("script/passe_livre.csv", index_col= 0)
+
+    (pd.concat([
+        df.assign(ano = ano) for ano in range (2002, 2023, 4)
+    ])
+    .assign(tratamento = lambda _: _.passe_livre * (_.ano == 2022))
+    .to_csv("data/t-passe_livre.csv")
     )
 
 def merge():
