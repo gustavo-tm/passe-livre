@@ -8,7 +8,7 @@ anos = "(2002, 2006, 2010, 2014, 2018, 2022)"
 
 def abstencao():
     query = f'''
-    SELECT id_municipio, ano, turno, aptos, abstencoes
+    SELECT id_municipio, ano, turno, aptos, abstencoes, secoes
     FROM `basedosdados.br_tse_eleicoes.detalhes_votacao_municipio` 
     WHERE ano IN {anos} AND cargo = 'presidente'
     '''

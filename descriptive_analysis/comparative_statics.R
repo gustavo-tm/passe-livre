@@ -54,3 +54,4 @@ ggsave("descriptive_analysis/mercado_votos.png", plot.1,  dpi = 600)
 ggsave("descriptive_analysis/mercado_votos_I.png", plot.2,  dpi = 600)
 ggsave("descriptive_analysis/mercado_votos_II.png", plot.3,  dpi = 600)
 ggsave("descriptive_analysis/mercado_votos_III.png", plot.4,  dpi = 600)
+
