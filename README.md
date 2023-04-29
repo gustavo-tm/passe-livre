@@ -9,7 +9,9 @@ This research aims to tackle one of the components that determine voter turnout:
 This research is backed by a microeconomical theoretical framework. The literature on this subject is extensive and the main references used were *Anthony Downs* (1957), *Ricker and Ordershook* (1968), *James Fowler* (2006), *Edlin, Gelman and Kaplan* (2007) and *Smets, van Ham* (2012). The final model adopted was the following:
 
 $$ \bold{E}(U_v)=\alpha\cdot B_s\cdot N\cdot \left(\frac{K}{V\cdot t}\right)+D-C $$ 
+
 in which
+
 - Candidate preference $(\alpha\cdot B_s\cdot N)$
     - $\alpha:$ An altruism coeficient
     - $B_s:$ Liquid preference between 1st best candidate and 2nd best candidate
