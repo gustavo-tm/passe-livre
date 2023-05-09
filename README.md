@@ -27,6 +27,7 @@ in which
 where if the utility of voting is greater than zero $E(U_v) > 0$, a rational eligible citizen will choose to vote. It's important to note that by this definition, cost also includes the opportunity cost.
 
 In a aggregate level, the equilibrium turnout can be defined by the intersecction between the marginal benefit of voting and the marginal cost of voting. In that point, the citizen will loose the same utility as they gain when voting, which makes them indifferent given the options of voting and not voting.
+
 $$t_{eq}\equiv B_{mg}\cap C_{mg}:\left(\frac{\alpha\cdot B_s\cdot N\cdot K}{V\cdot t}\right)+D=C\\
 t_{eq}\equiv\left(\frac{\alpha\cdot B_s\cdot N\cdot K}{V\cdot (C-D)}\right) $$
 
