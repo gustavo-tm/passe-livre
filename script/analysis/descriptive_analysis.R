@@ -19,7 +19,9 @@ gg <- ggplot() +
   geom_sf(data = data %>% filter(ano == 2022 & turno == 2), aes(fill = abstencao), color = NA) +
   scale_fill_gradient2(midpoint = median(df$abstencao), low = "#5C5B60", mid = "#B3DBCF", high = "#D28673") +
   labs(fill = "Abstenção") +
-  theme_void()
+  theme_void() +
+  theme(text = element_text(family = "A"))
+  
 
 ggsave("output/map_abstencao.png", gg, dpi = 600, bg='transparent')
 
@@ -27,6 +29,7 @@ ggsave("output/map_abstencao.png", gg, dpi = 600, bg='transparent')
 gg <- ggplot() +
   geom_sf(data = data %>% filter(ano == 2022 & turno == 2), aes(fill = factor(tratamento)), color = "#5C5B60", lwd = .001) +
   labs(fill = "Abstenção") +
+  theme(text = element_text(family = "A")) +
   scale_fill_manual(values = c("Houve Passe Livre" = "#D28673",
                                "Não Houve Passe Livre"="#5C5B60"))+
   theme_void()
