@@ -4,6 +4,8 @@ library(plm)
 library(MatchIt)
 library(modelsummary)
 library(fixest)
+library(modelsummary)
+formals(modelsummary)$stars <- TRUE
 
 df <- read_csv("output/data.csv") 
 
@@ -12,8 +14,11 @@ modelo_placebo <- log(abstencao) ~
   log(competitividade) + log(pib_pc) + ideb + log(beneficiados) + 
   log(pib_governo) + log(eleitores_secao) + i(ano, tratamento, ref= 2022) | id_municipio + ano
 
-feols(modelo_placebo, data = df %>% filter(turno == 1))
-feols(modelo_placebo, data = df %>% filter(turno == 2))
+modelsummary(list(
+  feols(modelo_placebo, data = df %>% filter(turno == 1)),
+  feols(modelo_placebo, data = df %>% filter(turno == 2))
+))
+
 
 #Propensity score matching ----
 df.psm <- read_csv("output/psm.csv") %>% 
@@ -61,29 +66,55 @@ bind_rows(df.1t, df.2t) %>%
   write_csv("output/data_psm.csv")
 
 #Teste placebo depois do PSM
-feols(modelo_placebo, data = df.1t)
-feols(modelo_placebo, data = df.2t)
+modelsummary(list(
+  feols(modelo_placebo, data = df.1t),
+  feols(modelo_placebo, data = df.2t)
+))
+
 
 #Estimação do DD----
 modelo.1 <- log(abstencao) ~ 
   log(competitividade) + log(pib_pc) + ideb + log(beneficiados) + 
   log(pib_governo) + log(eleitores_secao) + passe_livre | id_municipio + ano
 
-feols(modelo.1, data = df.1t)
-feols(modelo.1, data = df.2t)
+feols.m1.1t <- feols(modelo.1, data = df.1t)
+feols.m1.2t <- feols(modelo.1, data = df.2t)
 
 modelo.2 <- log(abstencao) ~ 
   log(competitividade) + ideb + log(beneficiados) + 
   log(pib_governo) + log(eleitores_secao) + passe_livre * log(pib_pc) | id_municipio + ano
-feols(modelo.2, data = df.1t)
-feols(modelo.2, data = df.2t)
+feols.m2.1t <- feols(modelo.2, data = df.1t)
+feols.m2.2t <- feols(modelo.2, data = df.2t)
 
 modelo.3 <- log(abstencao) ~ 
-  log(competitividade) + ideb + log(beneficiados) + 
-  log(pib_governo) + log(eleitores_secao) + passe_livre +
+  log(competitividade) + ideb + log(beneficiados) + log(pib_pc) +
+  log(pib_governo) + log(eleitores_secao) + 
   passe_livre : factor(ntile(pib_pc,5)) | id_municipio + ano
 
-feols(modelo.3, data = df.1t)
-feols(modelo.3, data = df.2t)
+feols.m3.1t <- feols(modelo.3, data = df.1t)
+feols.m3.2t <- feols(modelo.3, data = df.2t)
 
+modelsummary(list(
+  feols.m1.1t,
+  feols.m2.1t,
+  feols.m3.1t
+))
 
+modelsummary(list(
+  feols.m1.2t,
+  feols.m2.2t,
+  feols.m3.2t
+))
+
+modelsummary(list(
+  feols.m1.1t,
+  feols.m1.2t
+))
+modelsummary(list(
+  feols.m2.1t,
+  feols.m2.2t
+))
+modelsummary(list(
+  feols.m3.1t,
+  feols.m3.2t
+))
