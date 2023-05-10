@@ -9,13 +9,22 @@ df <- read_csv("output/data.csv")
 
 modelo_placebo <- log(abstencao) ~ 
   log(competitividade) + log(pib_pc) + ideb + log(beneficiados) + 
-  log(pib_governo) + log(eleitores_secao) + tratamento : factor(ano) | id_municipio + ano
+  log(pib_governo) + log(eleitores_secao) + i(ano, tratamento, ref = 2006) | id_municipio + ano
 
 clfe.1t <- feols(modelo_placebo, data = df %>% filter(turno == 1))
 clfe.2t <- feols(modelo_placebo, data = df %>% filter(turno == 2))
 
+df.reg <- bind_rows(
+  tibble(names = names(clfe.1t$coefficients), coef = clfe.1t$coefficients, se = clfe.1t$se, turno = 1),
+  tibble(names = names(clfe.2t$coefficients), coef = clfe.2t$coefficients, se = clfe.2t$se, turno = 2)
+) %>% 
+  mutate(psm = 0)
+
 summary(clfe.1t)
 summary(clfe.2t)
+
+coefplot(clfe.1t)
+coefplot(clfe.2t)
 
 df.psm <- read_csv("output/psm.csv") %>% 
   left_join(df %>% filter(ano == 2022) %>% select(id_municipio, tratamento, turno)) %>% 
@@ -60,6 +69,18 @@ clfe.2t.psm.placebo <- feols(modelo_placebo, data = df.2t)
 summary(clfe.1t.psm.placebo)
 summary(clfe.2t.psm.placebo)
 
+df.reg <- bind_rows(
+  tibble(names = names(clfe.1t.psm.placebo$coefficients), coef = clfe.1t.psm.placebo$coefficients, se = clfe.1t.psm.placebo$se, turno = 1),
+  tibble(names = names(clfe.2t.psm.placebo$coefficients), coef = clfe.2t.psm.placebo$coefficients, se = clfe.2t.psm.placebo$se, turno = 2)
+) %>% mutate(psm = 1) %>% 
+  bind_rows(df.reg) %>% 
+  mutate(names = str_match(names, "[0-9]+")) %>% 
+  drop_na()
+
+df.reg  %>% 
+  saveRDS(file = "script/analysis/coefs_placebo.rds")
+
+
 modelo <- log(abstencao) ~ 
   log(competitividade) + log(pib_pc) + ideb + log(beneficiados) + 
   log(pib_governo) + log(eleitores_secao) + passe_livre | id_municipio + ano
@@ -73,8 +94,9 @@ summary(clfe.2t.psm)
 
 modelo_placebo <- log(abstencao) ~ 
   log(competitividade) + log(pib_pc) + ideb + log(beneficiados) + 
-  log(pib_governo) + log(eleitores_secao) + i(ano, tratamento, ref= 2022) | id_municipio + ano
+  log(pib_governo) + log(eleitores_secao) + i(ano, tratamento, ref= 2006) | id_municipio + ano
 
 clfe <- feols(modelo_placebo, data = df.2t)
 coefplot(clfe)
-
+clfe$coefficients
+clfe
