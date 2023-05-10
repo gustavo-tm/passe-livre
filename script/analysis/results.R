@@ -7,7 +7,7 @@ library(fixest)
 
 df <- read_csv("output/data.csv") 
 
-#Tteste placebo----
+#Teste placebo----
 modelo_placebo <- log(abstencao) ~ 
   log(competitividade) + log(pib_pc) + ideb + log(beneficiados) + 
   log(pib_governo) + log(eleitores_secao) + i(ano, tratamento, ref= 2022) | id_municipio + ano
@@ -31,11 +31,11 @@ modelo_psm <- tratamento ~ razao_dependencia + taxa_envelhecimento + expectativa
   taxa_desocupacao_18_mais  + taxa_agua_encanada + log(populacao) + populacao_urbana + abstencao_2018 +
   log(abstencao) + log(competitividade) + log(pib_pc) + log(beneficiados) + pib_governo + eleitores_secao
 
-#Estimaï¿½ï¿½o do propensity
+#Estimação do propensity
 summary(glm(modelo_psm, data = df.psm, family = binomial(link = 'logit')))
 
 modelo_psm <- tratamento ~ taxa_envelhecimento + taxa_analfabetismo_18_mais + indice_gini + prop_pobreza_extrema + log(renda_pc) + idhm +
-  taxa_desocupacao_18_mais  + log(populacao) + populacao_urbana + log(abstencao) + log(pib_pc) + log(beneficiados) + eleitores_secao
+  taxa_desocupacao_18_mais  + log(populacao) + populacao_urbana + log(abstencao) + log(pib_pc) + log(beneficiados) + eleitores_secao + abstencao_2018
 
 match.1t <- matchit(
   modelo_psm,
@@ -64,7 +64,7 @@ bind_rows(df.1t, df.2t) %>%
 feols(modelo_placebo, data = df.1t)
 feols(modelo_placebo, data = df.2t)
 
-#Estimaï¿½ï¿½o do DD----
+#Estimação do DD----
 modelo.1 <- log(abstencao) ~ 
   log(competitividade) + log(pib_pc) + ideb + log(beneficiados) + 
   log(pib_governo) + log(eleitores_secao) + passe_livre | id_municipio + ano
@@ -77,5 +77,13 @@ modelo.2 <- log(abstencao) ~
   log(pib_governo) + log(eleitores_secao) + passe_livre * log(pib_pc) | id_municipio + ano
 feols(modelo.2, data = df.1t)
 feols(modelo.2, data = df.2t)
+
+modelo.3 <- log(abstencao) ~ 
+  log(competitividade) + ideb + log(beneficiados) + 
+  log(pib_governo) + log(eleitores_secao) + passe_livre +
+  passe_livre : factor(ntile(pib_pc,5)) | id_municipio + ano
+
+feols(modelo.3, data = df.1t)
+feols(modelo.3, data = df.2t)
 
 
