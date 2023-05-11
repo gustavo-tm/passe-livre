@@ -71,6 +71,14 @@ modelsummary(list(
   feols(modelo_placebo, data = df.2t)
 ))
 
+#Teste placebo depois do PSM com interação
+modelo_placebo <- log(abstencao) ~ 
+  log(competitividade) + ideb + log(beneficiados) + 
+  log(pib_governo) + log(eleitores_secao) + i(ano, tratamento, ref= 2022) * log(pib_pc) | id_municipio + ano
+modelsummary(list(
+  feols(modelo_placebo, data = df.1t),
+  feols(modelo_placebo, data = df.2t)
+))
 
 #Estimação do DD----
 modelo.1 <- log(abstencao) ~ 
