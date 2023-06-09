@@ -7,6 +7,12 @@ library(modelsummary)
 library(gt)
 formals(modelsummary)$stars <- TRUE
 
+#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
+
+# DADOS
+
+#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
+
 df <- read_csv("output/data.csv")
 
 df <- df %>% 
@@ -15,151 +21,257 @@ df <- df %>%
   left_join(
     df %>% 
       filter(ano == 2022) %>% 
-      mutate(tratamento_A = passe_livre,
-             controle_A = 1 - passe_livre) %>% 
-      select(c(id_municipio, tratamento_A, controle_A))
-  ) %>% 
+      mutate(tratamento_A = (passe_livre == 1),
+             controle_A = (passe_livre == 0)) %>% 
+      select(c(id_municipio, turno, tratamento_A, controle_A))
+  ) %>%
   #Tratamento B -> municípios que tiveram o passe livre apenas no segundo turno
   #Controle B   -> municípios que tiveram o passe livre em ambos os turnos
   left_join(
-    df %>% 
-      filter(ano == 2022) %>% 
+    df %>%
+      filter(ano == 2022) %>%
       select(c(id_municipio, passe_livre)) %>%
-      group_by(id_municipio) %>% 
-      summarise(passe_livre = sum(passe_livre)) %>% 
+      group_by(id_municipio) %>%
+      summarise(passe_livre = sum(passe_livre)) %>%
       mutate(tratamento_B = (passe_livre == 1),
-             controle_B = (passe_livre == 2)) %>% 
-      select(c(id_municipio, tratamento_B, controle_B))
-  )
+             controle_B = (passe_livre == 2)) %>%
+      select(c(id_municipio, tratamento_B, controle_B)),
+    by = "id_municipio"
+  ) %>% 
+  select(-passe_livre)
 
-#FEOLS----
-modelo_plm <- log(abstencao) ~ 
-  log(competitividade) + log(pib_pc) + log(beneficiados) + ideb +
-  log(pib_governo) + log(eleitores_secao) | id_municipio + ano
+#Base com a estratégia A
+df.A <- df %>% 
+  filter(tratamento_A == 1 | controle_A == 1) %>% 
+  mutate(tratamento = tratamento_A) %>% 
+  select(-c(tratamento_A, controle_A, tratamento_B, controle_B))
 
+#Base com a estratégia B
+df.B <- df %>% 
+  filter(tratamento_B == 1 | controle_B == 1) %>% 
+  mutate(tratamento = tratamento_B) %>% 
+  select(-c(tratamento_A, controle_A, tratamento_B, controle_B))
+
+#Estatísticas descritivas
+df %>% 
+  filter(ano == 2022) %>% 
+  datasummary((tratamento_A + controle_A + tratamento_B + controle_B) * (abstencao) ~ (Mean + N) * (factor(turno)), .,
+              fmt = 3)
+
+#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
+
+# DESIGN DOS MODELOS
+
+#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
+
+modelo.feols <- log(abstencao) ~ 
+  i(ano, tratamento, ref = 2018) | id_municipio + ano
+
+modelo.faols <- log(abstencao) ~ 
+  i(ano, tratamento, ref = 2018) + tratamento | ano
+
+modelo.feols.controle <- log(abstencao) ~ 
+  log(competitividade) + log(pib_pc) + log(beneficiados) + ideb + log(populacao) +
+  log(pib_governo) + log(eleitores_secao) + i(ano, tratamento, ref = 2018)| id_municipio + ano
+
+modelo.faols.controle <- log(abstencao) ~ 
+  log(competitividade) + log(pib_pc) + log(beneficiados) + ideb + log(populacao) +
+  log(pib_governo) + log(eleitores_secao) + i(ano, tratamento, ref = 2018) + tratamento | ano
+
+
+#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
+
+# ARTIGO TELEFONE
+
+#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
+
+
+#TABELA DE RESULTADOS
 modelsummary(list(
-  "Primeiro Turno" = feols(modelo_plm, data = df %>% filter(turno == 1)),
-  "Segundo Turno" = feols(modelo_plm, data = df %>% filter(turno == 2))
-),
-#, output = "output/reg/feols.tex",
-  coef_rename = c('ideb' = 'IDEB')
-)
+  feols(modelo.feols, data = df.B %>% filter(turno == 1)),
+  feols(modelo.faols, data = df.B %>% filter(turno == 1)),
+  feols(modelo.feols.controle, data = df.B %>% filter(turno == 1)),
+  feols(modelo.faols.controle, data = df.B %>% filter(turno == 1))
+), 
+# stars = T,
+# statistic = "({p.value})",
+estimate = "{estimate} {stars}",
+statistic = NULL,
+coef_rename = c("log(pib_pc)" = "log(PIB per capita)"),
+gof_omit = "AIC|BIC|F|Lik|Std.Errors|RMSE")
 
-#Teste placebo----
-modelo_placebo <- log(abstencao) ~ 
-  log(competitividade) + log(pib_pc) + ideb + log(beneficiados) +
-  log(pib_governo) + log(eleitores_secao) + i(ano, tratamento, ref= 2006) | id_municipio + ano
+#VISUALIZAÇÃO DO EVENT STUDY
+iplot(feols(modelo.feols, data = df.B %>% filter(turno == 1)))
+iplot(feols(modelo.feols.controle, data = df.B %>% filter(turno == 1)))
 
+
+#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
+
+# NOSSA ABORDAGEM ANTES DO PSM
+
+#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
+
+#TABELA DE RESULTADOS
 modelsummary(list(
-  feols(modelo_placebo, data = df %>% filter(turno == 1 & ano != 2022)),
-  feols(modelo_placebo, data = df %>% filter(turno == 2 & ano != 2022))
+  feols(modelo.feols, data = df.A %>% filter(turno == 1)),
+  feols(modelo.faols, data = df.A %>% filter(turno == 1)),
+  feols(modelo.feols.controle, data = df.A %>% filter(turno == 1)),
+  feols(modelo.faols.controle, data = df.A %>% filter(turno == 1))
+), 
+# stars = T,
+# statistic = "({p.value})",
+estimate = "{estimate} {stars}",
+statistic = NULL,
+coef_rename = c("log(pib_pc)" = "log(PIB per capita)"),
+gof_omit = "AIC|BIC|F|Lik|Std.Errors|RMSE")
+
+#VISUALIZAÇÃO DO EVENT STUDY
+iplot(list(
+  feols(modelo.feols, data = df.A %>% filter(turno == 1)),
+  feols(modelo.feols, data = df.A %>% filter(turno == 2))
+  ))
+
+iplot(list(
+  feols(modelo.feols.controle, data = df.A %>% filter(turno == 1)),
+  feols(modelo.feols.controle, data = df.A %>% filter(turno == 2))
 ))
 
 
-#Propensity score matching ----
+
+#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
+
+# PROPENSITY SCORE MATCHING
+
+#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
+
+#Variáveis do propensity
 df.psm <- read_csv("output/psm.csv") %>% 
-  left_join(df %>% filter(ano == 2022) %>% select(id_municipio, tratamento, turno)) %>% 
-  left_join(df %>% filter(ano == 2018) %>% select(id_municipio, abstencao, turno) %>% rename("abstencao_2018" = "abstencao")) %>% 
-  left_join(df %>% filter(ano <2022) %>% group_by(id_municipio) %>% 
-      summarize(abstencao = mean(abstencao), competitividade = mean(competitividade), pib_pc = mean(pib_pc),
+  #Grupo controle ou tratamento
+  left_join(
+    df.A %>% 
+      filter(ano == 2022) %>% 
+      select(id_municipio, tratamento, turno)
+    ) %>% 
+  #Abstenção de 2018
+  left_join(
+    df.A %>% 
+      filter(ano == 2018) %>% select(id_municipio, abstencao, turno) %>% 
+      rename("abstencao_2018" = "abstencao")
+    ) %>% 
+  #Variáveis médias antes de 2022
+  left_join(
+    df.A %>% filter(ano <2022) %>% 
+      group_by(id_municipio) %>% 
+      summarize(competitividade = mean(competitividade), pib_pc = mean(pib_pc),
                 beneficiados = mean(beneficiados), pib_governo = mean(pib_governo),
-                eleitores_secao = mean(eleitores_secao), tratamento = max(tratamento))) %>% 
+                eleitores_secao = mean(eleitores_secao))) %>% 
   mutate(populacao_urbana = populacao_urbana/populacao) %>% 
   drop_na()
 
-modelo_psm <- tratamento ~ razao_dependencia + taxa_envelhecimento + expectativa_anos_estudo + 
+modelo.psm <- tratamento ~ razao_dependencia + taxa_envelhecimento + expectativa_anos_estudo + 
   taxa_analfabetismo_18_mais + indice_gini + prop_pobreza_extrema + log(renda_pc) + idhm +
-  taxa_desocupacao_18_mais  + taxa_agua_encanada + log(populacao) + populacao_urbana + abstencao_2018 +
-  log(abstencao) + log(competitividade) + log(pib_pc) + log(beneficiados) + pib_governo + eleitores_secao
+  taxa_desocupacao_18_mais  + taxa_agua_encanada + log(populacao) + populacao_urbana + 
+  log(abstencao_2018) + log(competitividade) + log(pib_pc) + log(beneficiados) + pib_governo + eleitores_secao
 
-#Estimação do propensity
-summary(glm(modelo_psm, data = df.psm, family = binomial(link = 'logit')))
+psm <- glm(modelo.psm, data = df.psm, family = binomial(link = "logit"))
 
-modelo_psm <- tratamento ~ taxa_envelhecimento + taxa_analfabetismo_18_mais + indice_gini + prop_pobreza_extrema + log(renda_pc) + idhm +
-  taxa_desocupacao_18_mais  + log(populacao) + populacao_urbana + log(abstencao) + log(pib_pc) + log(beneficiados) + eleitores_secao + abstencao_2018
+#Balanceamento antes do PSM
+df.psm %>% 
+  mutate(ps = predict(glm(modelo.psm, data = ., family = binomial(link = "logit")), type = "response")) %>% 
+  ggplot() +
+    geom_density(aes(ps, fill = tratamento), alpha = .7) +
+    facet_wrap("turno")
 
-match.1t <- matchit(
-  modelo_psm,
-  data=df.psm %>% filter(turno == 1), link="probit", replace = T) 
-match.2t <- matchit(
-  modelo_psm,
-  data=df.psm %>% filter(turno == 2), link="probit", replace = T) 
-
-#Resultado do balanceamento
-plot(match.1t,type="density",interactive=FALSE)
-plot(match.2t,type="density",interactive=FALSE)
-
-df.1t <- match.1t %>%  
+df.match.1t <- matchit(modelo.psm, data=df.psm %>% filter(turno == 1), link="probit", replace = T) %>% 
   get_matches(distance = "propscore", data=df.psm %>% filter(turno == 1)) %>% 
   select(id_municipio) %>% 
-  left_join(df %>% filter(turno == 1))
-df.2t <- match.2t %>%  
+  left_join(df.A %>% filter(turno == 1))
+
+df.match.2t <- matchit(modelo.psm, data=df.psm %>% filter(turno == 2), link="probit", replace = T) %>% 
   get_matches(distance = "propscore", data=df.psm %>% filter(turno == 2)) %>% 
   select(id_municipio) %>% 
-  left_join(df %>% filter(turno == 2))
+  left_join(df.A %>% filter(turno == 2))
 
-bind_rows(df.1t, df.2t) %>% 
-  write_csv("output/data_psm.csv")
+df.match <- df.match.1t %>% 
+  bind_rows(df.match.2t)
 
-#Teste placebo depois do PSM
+#Balanceamento depois do propensity
+df.psm %>% 
+  semi_join(df.match, by = "id_municipio") %>% 
+  mutate(ps = predict(glm(modelo.psm, data = ., family = binomial(link = "logit")), type = "response")) %>% 
+  ggplot() +
+  geom_density(aes(ps, fill = tratamento), alpha = .7) +
+  facet_wrap("turno")
+
+
+#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
+
+# NOSSA ABORDAGEM DEPOIS DO PSM
+
+#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
+
+
+#TABELA DE RESULTADOS
 modelsummary(list(
-  feols(modelo_placebo, data = df.1t %>% filter(ano != 2022)), 
-  feols(modelo_placebo, data = df.2t %>% filter(ano != 2022))
+  feols(modelo.feols, data = df.match %>% filter(turno == 1)),
+  feols(modelo.faols, data = df.match %>% filter(turno == 1)),
+  feols(modelo.feols.controle, data = df.match %>% filter(turno == 1)),
+  feols(modelo.faols.controle, data = df.match %>% filter(turno == 1))
+), 
+# stars = T,
+# statistic = "({p.value})",
+estimate = "{estimate} {stars}",
+statistic = NULL,
+coef_rename = c("log(pib_pc)" = "log(PIB per capita)"),
+gof_omit = "AIC|BIC|F|Lik|Std.Errors|RMSE")
+
+#VISUALIZAÇÃO DO EVENT STUDY
+iplot(feols(modelo.feols, data = df.match %>% filter(turno == 1)))
+iplot(feols(modelo.feols.controle, data = df.match %>% filter(turno == 1)))
+
+#VISUALIZAÇÃO DO EVENT STUDY
+iplot(list(
+  feols(modelo.feols, data = df.match %>% filter(turno == 1)),
+  feols(modelo.feols, data = df.match %>% filter(turno == 2))
 ))
 
-#Teste placebo depois do PSM com interação
-modelo_placebo <- log(abstencao) ~ 
-  log(competitividade) + ideb + log(beneficiados) + 
-  log(pib_governo) + log(eleitores_secao) + (ano == 2018):tratamento * factor(ntile(pib_pc,5)) | id_municipio + ano
-modelsummary(list(
-  feols(modelo_placebo, data = df.1t %>% filter(ano != 2022)),
-  feols(modelo_placebo, data = df.2t %>% filter(ano != 2022))
+iplot(list(
+  feols(modelo.feols.controle, data = df.match %>% filter(turno == 1)),
+  feols(modelo.feols.controle, data = df.match %>% filter(turno == 2))
 ))
 
-#Estimação do DD----
-modelo.1 <- log(abstencao) ~ 
-  log(competitividade) + log(pib_pc) + ideb + log(beneficiados) + 
-  log(pib_governo) + log(eleitores_secao) + passe_livre | id_municipio + ano
 
-feols.m1.1t <- feols(modelo.1, data = df.1t)
-feols.m1.2t <- feols(modelo.1, data = df.2t)
+#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
 
-modelo.2 <- log(abstencao) ~ 
-  log(competitividade) + ideb + log(beneficiados) + 
-  log(pib_governo) + log(eleitores_secao) + passe_livre * log(pib_pc) | id_municipio + ano
-feols.m2.1t <- feols(modelo.2, data = df.1t)
-feols.m2.2t <- feols(modelo.2, data = df.2t)
+# EFEITO HETEROGÊNEO
 
-modelo.3 <- log(abstencao) ~ 
-  log(competitividade) + ideb + log(beneficiados) + log(pib_pc) +
-  log(pib_governo) + log(eleitores_secao) + 
-  passe_livre : factor(ntile(pib_pc,5)) | id_municipio + ano
+#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
 
-feols.m3.1t <- feols(modelo.3, data = df.1t)
-feols.m3.2t <- feols(modelo.3, data = df.2t)
+df.test <- df.match %>% 
+  mutate(quantil = factor(ntile(.$pib_pc,4)))
 
-modelsummary(list(
-  feols.m1.1t,
-  feols.m2.1t,
-  feols.m3.1t
+modelo.feols.controle.heterogen <- log(abstencao) ~ 
+  log(competitividade) + log(pib_pc) + log(beneficiados) + ideb + log(populacao) +
+  log(pib_governo) + log(eleitores_secao) + trat * factor(ntile(pib_pc,5))| id_municipio + ano
+
+#TABELA DE RESULTADOS
+modelsummary(
+  feols(modelo.feols.controle.heterogen, data = df.test %>% filter(turno == 2)), 
+# stars = T,
+statistic = "({p.value})",
+estimate = "{estimate} {stars}",
+# statistic = NULL,
+coef_rename = c("log(pib_pc)" = "log(PIB per capita)"),
+gof_omit = "AIC|BIC|F|Lik|Std.Errors|RMSE")
+
+iplot(list(
+  feols(modelo.feols, data = df.test %>% filter(turno == 2 & quantil == 1)),
+  feols(modelo.feols, data = df.test %>% filter(turno == 2 & quantil == 2)),
+  feols(modelo.feols, data = df.test %>% filter(turno == 2 & quantil == 3)),
+  feols(modelo.feols, data = df.test %>% filter(turno == 2 & quantil == 4))
 ))
 
-modelsummary(list(
-  feols.m1.2t,
-  feols.m2.2t,
-  feols.m3.2t
-))
 
-modelsummary(list(
-  feols.m1.1t,
-  feols.m1.2t
-))
-modelsummary(list(
-  feols.m2.1t,
-  feols.m2.2t
-))
-modelsummary(list(
-  feols.m3.1t,
-  feols.m3.2t
-))
+
+
 
