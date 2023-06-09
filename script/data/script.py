@@ -117,8 +117,7 @@ def controle_tratamento():
     (pd.concat([
         df.assign(ano = ano) for ano in range (2002, 2023, 4)
     ])
-    .assign(tratamento = lambda _: _.passe_livre,
-            passe_livre = lambda _: _.passe_livre * (_.ano == 2022))
+    .assign(passe_livre = lambda _: _.passe_livre * (_.ano == 2022))
     .to_csv("data/t-passe_livre.csv")
     )
 

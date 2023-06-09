@@ -1,22 +1,58 @@
 library(readr)
 library(tidyverse)
-library(plm)
 library(MatchIt)
 library(modelsummary)
 library(fixest)
 library(modelsummary)
+library(gt)
 formals(modelsummary)$stars <- TRUE
 
-df <- read_csv("output/data.csv") 
+df <- read_csv("output/data.csv")
+
+df <- df %>% 
+  #Tratamento A -> municípios que adotaram o passe livre
+  #Controle A   -> municípios que não adotaram o passe livre
+  left_join(
+    df %>% 
+      filter(ano == 2022) %>% 
+      mutate(tratamento_A = passe_livre,
+             controle_A = 1 - passe_livre) %>% 
+      select(c(id_municipio, tratamento_A, controle_A))
+  ) %>% 
+  #Tratamento B -> municípios que tiveram o passe livre apenas no segundo turno
+  #Controle B   -> municípios que tiveram o passe livre em ambos os turnos
+  left_join(
+    df %>% 
+      filter(ano == 2022) %>% 
+      select(c(id_municipio, passe_livre)) %>%
+      group_by(id_municipio) %>% 
+      summarise(passe_livre = sum(passe_livre)) %>% 
+      mutate(tratamento_B = (passe_livre == 1),
+             controle_B = (passe_livre == 2)) %>% 
+      select(c(id_municipio, tratamento_B, controle_B))
+  )
+
+#FEOLS----
+modelo_plm <- log(abstencao) ~ 
+  log(competitividade) + log(pib_pc) + log(beneficiados) + ideb +
+  log(pib_governo) + log(eleitores_secao) | id_municipio + ano
+
+modelsummary(list(
+  "Primeiro Turno" = feols(modelo_plm, data = df %>% filter(turno == 1)),
+  "Segundo Turno" = feols(modelo_plm, data = df %>% filter(turno == 2))
+),
+#, output = "output/reg/feols.tex",
+  coef_rename = c('ideb' = 'IDEB')
+)
 
 #Teste placebo----
 modelo_placebo <- log(abstencao) ~ 
-  log(competitividade) + log(pib_pc) + ideb + log(beneficiados) + 
-  log(pib_governo) + log(eleitores_secao) + i(ano, tratamento, ref= 2022) | id_municipio + ano
+  log(competitividade) + log(pib_pc) + ideb + log(beneficiados) +
+  log(pib_governo) + log(eleitores_secao) + i(ano, tratamento, ref= 2006) | id_municipio + ano
 
 modelsummary(list(
-  feols(modelo_placebo, data = df %>% filter(turno == 1)),
-  feols(modelo_placebo, data = df %>% filter(turno == 2))
+  feols(modelo_placebo, data = df %>% filter(turno == 1 & ano != 2022)),
+  feols(modelo_placebo, data = df %>% filter(turno == 2 & ano != 2022))
 ))
 
 
@@ -67,17 +103,17 @@ bind_rows(df.1t, df.2t) %>%
 
 #Teste placebo depois do PSM
 modelsummary(list(
-  feols(modelo_placebo, data = df.1t),
-  feols(modelo_placebo, data = df.2t)
+  feols(modelo_placebo, data = df.1t %>% filter(ano != 2022)), 
+  feols(modelo_placebo, data = df.2t %>% filter(ano != 2022))
 ))
 
 #Teste placebo depois do PSM com interação
 modelo_placebo <- log(abstencao) ~ 
   log(competitividade) + ideb + log(beneficiados) + 
-  log(pib_governo) + log(eleitores_secao) + i(ano, tratamento, ref= 2022) * log(pib_pc) | id_municipio + ano
+  log(pib_governo) + log(eleitores_secao) + (ano == 2018):tratamento * factor(ntile(pib_pc,5)) | id_municipio + ano
 modelsummary(list(
-  feols(modelo_placebo, data = df.1t),
-  feols(modelo_placebo, data = df.2t)
+  feols(modelo_placebo, data = df.1t %>% filter(ano != 2022)),
+  feols(modelo_placebo, data = df.2t %>% filter(ano != 2022))
 ))
 
 #Estimação do DD----
@@ -126,3 +162,4 @@ modelsummary(list(
   feols.m3.1t,
   feols.m3.2t
 ))
+

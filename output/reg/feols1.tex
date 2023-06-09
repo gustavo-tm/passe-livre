@@ -1,0 +1,34 @@
+\begin{table}
+\centering
+\begin{tabular}[t]{lcc}
+\toprule
+  & Primeiro Turno & Segundo Turno\\
+\midrule
+log(competitividade) & \num{-0.009}*** & \num{-0.009}***\\
+ & (\num{0.001}) & \vphantom{1} (\num{0.001})\\
+log(pib\_pc) & \num{-0.016}*** & \num{-0.017}***\\
+ & (\num{0.002}) & (\num{0.002})\\
+log(beneficiados) & \num{-0.475}*** & \num{-0.452}***\\
+ & (\num{0.028}) & (\num{0.027})\\
+ideb & \num{-0.022}*** & \num{-0.017}***\\
+ & (\num{0.003}) & (\num{0.003})\\
+log(pib\_governo) & \num{-0.006}*** & \num{-0.006}***\\
+ & (\num{0.001}) & (\num{0.001})\\
+log(eleitores\_secao) & \num{0.555}*** & \num{0.469}***\\
+ & (\num{0.019}) & (\num{0.018})\\
+\midrule
+Num.Obs. & \num{26013} & \num{26020}\\
+R2 & \num{0.794} & \num{0.809}\\
+R2 Adj. & \num{0.739} & \num{0.758}\\
+R2 Within & \num{0.179} & \num{0.161}\\
+R2 Within Adj. & \num{0.178} & \num{0.160}\\
+AIC & \num{-18352.1} & \num{-20961.5}\\
+BIC & \num{26718.0} & \num{24110.1}\\
+RMSE & \num{0.14} & \num{0.13}\\
+Std.Errors & by: id\_municipio & by: id\_municipio\\
+FE: id_municipio & X & X\\
+FE: ano & X & X\\
+\bottomrule
+\multicolumn{3}{l}{\rule{0pt}{1em}+ p $<$ 0.1, * p $<$ 0.05, ** p $<$ 0.01, *** p $<$ 0.001}\\
+\end{tabular}
+\end{table}
