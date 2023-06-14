@@ -1,11 +1,19 @@
-library(readr)
 library(tidyverse)
 library(MatchIt)
 library(modelsummary)
 library(fixest)
-library(modelsummary)
-library(gt)
+# library(gt)
 formals(modelsummary)$stars <- TRUE
+
+tema <- theme(text = element_text(family = "A"),
+              panel.background = element_rect(fill = '#75BDA7', color = "white"),
+              plot.background = element_rect(fill = '#75BDA7'),
+              axis.title.x = element_text(color="white"),
+              axis.text.x = element_text(color="white"),
+              axis.title.y = element_text(color="white"),
+              axis.text.y = element_text(color="white"),
+              panel.grid.major = element_blank(),
+              panel.grid.minor = element_blank())
 
 #--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
 
@@ -13,8 +21,8 @@ formals(modelsummary)$stars <- TRUE
 
 #--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
 
-df <- read_csv("output/data.csv") %>% 
-  mutate(quantil = factor(ntile(.$pib_pc,4)))
+df <- read_csv("output/data.csv")
+  
 
 df <- df %>% 
   #Tratamento A -> municípios que adotaram o passe livre
@@ -80,8 +88,7 @@ df.psm <- read_csv("output/psm.csv") %>%
       summarize(competitividade = mean(competitividade), pib_pc = mean(pib_pc),
                 beneficiados = mean(beneficiados), pib_governo = mean(pib_governo),
                 eleitores_secao = mean(eleitores_secao))) %>% 
-  mutate(populacao_urbana = populacao_urbana/populacao,
-         quantil = ntile(.$pib_pc,4)) %>% 
+  mutate(populacao_urbana = populacao_urbana/populacao) %>% 
   drop_na()
 
 #--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
@@ -177,11 +184,17 @@ iplot(list(
 psm <- glm(modelo.psm, data = df.psm, family = binomial(link = "logit"))
 
 #Balanceamento antes do PSM
-df.psm %>% 
-  mutate(ps = predict(glm(modelo.psm, data = ., family = binomial(link = "logit")), type = "response")) %>% 
+gg <- df.psm %>% 
+  mutate(ps = predict(glm(modelo.psm, data = ., family = binomial(link = "logit")), type = "response"),
+         turno = ifelse(turno == 1, "Primeiro Turno", "Segundo Turno")) %>% 
   ggplot() +
     geom_density(aes(ps, fill = tratamento), alpha = .7) +
-    facet_wrap("turno")
+    facet_wrap("turno") +
+    tema + 
+    labs(x = "Propensity Score", y = "Densidade") + 
+    scale_fill_manual(values = c("FALSE" = "#5C5B60",
+                                 "TRUE"="#D28673")) 
+ggsave("output/pre-propensity.png", gg, dpi = 600)
 
 df.match.1t <- matchit(modelo.psm, data=df.psm %>% filter(turno == 1), link="probit", replace = T) %>% 
   get_matches(distance = "propscore", data=df.psm %>% filter(turno == 1)) %>% 
@@ -197,12 +210,19 @@ df.match <- df.match.1t %>%
   bind_rows(df.match.2t)
 
 #Balanceamento depois do propensity
-df.psm %>% 
+gg <- df.psm %>% 
   semi_join(df.match, by = "id_municipio") %>% 
-  mutate(ps = predict(glm(modelo.psm, data = ., family = binomial(link = "logit")), type = "response")) %>% 
+  mutate(ps = predict(glm(modelo.psm, data = ., family = binomial(link = "logit"),), type = "response"),
+         turno = ifelse(turno == 1, "Primeiro Turno", "Segundo Turno")) %>% 
   ggplot() +
-  geom_density(aes(ps, fill = tratamento), alpha = .7) +
-  facet_wrap("turno")
+    geom_density(aes(ps, fill = tratamento), alpha = .6) +
+    facet_wrap("turno") +
+    tema +
+    labs(x = "Propensity Score", y = "Densidade") + 
+    scale_fill_manual(values = c("FALSE" = "#5C5B60",
+                                  "TRUE"="#D28673")) 
+
+ggsave("output/pos-propensity.png", gg, dpi = 600)
 
 
 #--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
@@ -249,7 +269,8 @@ iplot(list(
 #--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
 
 df.test <- df.match %>% 
-  mutate(quantil = factor(ntile(.$pib_pc,4)))
+  mutate(quantil = factor(ntile(.$pib_pc,4)),
+         trat = (tratamento == 1) * (ano == 2022))
 
 modelo.feols.controle.heterogen <- log(abstencao) ~ 
   log(competitividade) + log(pib_pc) + log(beneficiados) + ideb + log(populacao) +
@@ -266,17 +287,17 @@ coef_rename = c("log(pib_pc)" = "log(PIB per capita)"),
 gof_omit = "AIC|BIC|F|Lik|Std.Errors|RMSE")
 
 iplot(list(
-  feols(modelo.feols, data = df.test %>% filter(turno == 1 & quantil == 1)),
-  feols(modelo.feols, data = df.test %>% filter(turno == 1 & quantil == 2)),
-  feols(modelo.feols, data = df.test %>% filter(turno == 1 & quantil == 3)),
-  feols(modelo.feols, data = df.test %>% filter(turno == 1 & quantil == 4))
+  feols(modelo.feols.controle, data = df.test %>% filter(turno == 1 & quantil == 1)),
+  feols(modelo.feols.controle, data = df.test %>% filter(turno == 1 & quantil == 2)),
+  feols(modelo.feols.controle, data = df.test %>% filter(turno == 1 & quantil == 3)),
+  feols(modelo.feols.controle, data = df.test %>% filter(turno == 1 & quantil == 4))
 ))
 
 iplot(list(
-  feols(modelo.feols, data = df.test %>% filter(turno == 2 & quantil == 1)),
-  feols(modelo.feols, data = df.test %>% filter(turno == 2 & quantil == 2)),
-  feols(modelo.feols, data = df.test %>% filter(turno == 2 & quantil == 3)),
-  feols(modelo.feols, data = df.test %>% filter(turno == 2 & quantil == 4))
+  feols(modelo.feols.controle, data = df.test %>% filter(turno == 2 & quantil == 1)),
+  feols(modelo.feols.controle, data = df.test %>% filter(turno == 2 & quantil == 2)),
+  feols(modelo.feols.controle, data = df.test %>% filter(turno == 2 & quantil == 3)),
+  feols(modelo.feols.controle, data = df.test %>% filter(turno == 2 & quantil == 4))
 ))
 
 
@@ -286,19 +307,26 @@ iplot(list(
 
 #--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
 
+quantiles = 3
+
 df.match.segmented <- data.frame()
-for (quantil.i in c(1:5)) {
+for (quantil.i in c(1:quantiles)) {
   df.match.segmented <- df.match.segmented %>% 
     bind_rows(
-      matchit(update(modelo.psm, . * (quantil == quantil.i) ~ .), data=df.psm %>% filter(turno == 2), link="probit", replace = T) %>% 
+      matchit(update(modelo.psm, . * (quantil == quantil.i) ~ .), 
+              data=df.psm %>% filter(turno == 2) %>% mutate(quantil = factor(ntile(.$pib_pc,quantiles))), 
+              link="probit", replace = T) %>% 
         get_matches(distance = "propscore", data=df.psm %>% filter(turno == 2)) %>% 
         select(id_municipio) %>% 
-        left_join(df.A %>% filter(turno == 2))
+        left_join(df.A %>% filter(turno == 2)) %>% 
+        mutate(group = quantil.i)
     )
 }
 
 #Balanceamento depois do propensity
 df.psm %>% 
+  filter(turno == 2) %>% 
+  mutate(quantil = factor(ntile(.$pib_pc,quantiles))) %>% 
   semi_join(df.match.segmented, by = "id_municipio") %>% 
   mutate(ps = predict(glm(modelo.psm, data = ., family = binomial(link = "logit")), type = "response")) %>% 
   ggplot() +
@@ -306,9 +334,18 @@ df.psm %>%
   facet_wrap("quantil")
 
 iplot(list(
-  feols(modelo.feols, data = df.match.segmented %>% filter(turno == 2 & quantil == 1)),
-  feols(modelo.feols, data = df.match.segmented %>% filter(turno == 2 & quantil == 2)),
-  feols(modelo.feols, data = df.match.segmented %>% filter(turno == 2 & quantil == 3)),
-  feols(modelo.feols, data = df.match.segmented %>% filter(turno == 2 & quantil == 4))
+  feols(modelo.feols, data = df.match.segmented %>% filter(turno == 2 & group == 1)),
+  feols(modelo.feols, data = df.match.segmented %>% filter(turno == 2 & group == 2)),
+  feols(modelo.feols, data = df.match.segmented %>% filter(turno == 2 & group == 3)),
+  feols(modelo.feols, data = df.match.segmented %>% filter(turno == 2 & group == 4)),
+  feols(modelo.feols, data = df.match.segmented %>% filter(turno == 2 & group == 5))
+))
+
+iplot(list(
+  feols(modelo.feols.controle, data = df.match.segmented %>% filter(turno == 2 & group == 1)),
+  feols(modelo.feols.controle, data = df.match.segmented %>% filter(turno == 2 & group == 2)),
+  # feols(modelo.feols.controle, data = df.match.segmented %>% filter(turno == 2 & group == 3)),
+  # feols(modelo.feols.controle, data = df.match.segmented %>% filter(turno == 2 & group == 4)),
+  feols(modelo.feols.controle, data = df.match.segmented %>% filter(turno == 2 & group == 3))
 ))
 
