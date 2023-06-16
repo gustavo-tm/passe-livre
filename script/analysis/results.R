@@ -5,15 +5,7 @@ library(fixest)
 # library(gt)
 formals(modelsummary)$stars <- TRUE
 
-tema <- theme(text = element_text(family = "A"),
-              panel.background = element_rect(fill = '#75BDA7', color = "white"),
-              plot.background = element_rect(fill = '#75BDA7'),
-              axis.title.x = element_text(color="white"),
-              axis.text.x = element_text(color="white"),
-              axis.title.y = element_text(color="white"),
-              axis.text.y = element_text(color="white"),
-              panel.grid.major = element_blank(),
-              panel.grid.minor = element_blank())
+
 
 #--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
 
@@ -190,10 +182,13 @@ gg <- df.psm %>%
   ggplot() +
     geom_density(aes(ps, fill = tratamento), alpha = .7) +
     facet_wrap("turno") +
-    tema + 
     labs(x = "Propensity Score", y = "Densidade") + 
     scale_fill_manual(values = c("FALSE" = "#5C5B60",
-                                 "TRUE"="#D28673")) 
+                                 "TRUE"="#D28673")) +
+  scale_x_continuous(labels = scales::percent_format(scale = 100),
+                     limits = c(0,0.8))
+gg
+
 ggsave("output/pre-propensity.png", gg, dpi = 600)
 
 df.match.1t <- matchit(modelo.psm, data=df.psm %>% filter(turno == 1), link="probit", replace = T) %>% 
@@ -217,10 +212,13 @@ gg <- df.psm %>%
   ggplot() +
     geom_density(aes(ps, fill = tratamento), alpha = .6) +
     facet_wrap("turno") +
-    tema +
     labs(x = "Propensity Score", y = "Densidade") + 
     scale_fill_manual(values = c("FALSE" = "#5C5B60",
-                                  "TRUE"="#D28673")) 
+                                  "TRUE"="#D28673")) +
+  scale_x_continuous(labels = scales::percent_format(scale = 100),
+                     limits = c(0,0.8))
+
+gg
 
 ggsave("output/pos-propensity.png", gg, dpi = 600)
 
@@ -235,117 +233,119 @@ ggsave("output/pos-propensity.png", gg, dpi = 600)
 #TABELA DE RESULTADOS
 modelsummary(list(
   feols(modelo.feols, data = df.match %>% filter(turno == 1)),
-  feols(modelo.faols, data = df.match %>% filter(turno == 1)),
-  feols(modelo.feols.controle, data = df.match %>% filter(turno == 1)),
-  feols(modelo.faols.controle, data = df.match %>% filter(turno == 1))
-), 
-# stars = T,
-# statistic = "({p.value})",
-estimate = "{estimate} {stars}",
-statistic = NULL,
-coef_rename = c("log(pib_pc)" = "log(PIB per capita)"),
-gof_omit = "AIC|BIC|F|Lik|Std.Errors|RMSE")
-
-#VISUALIZAÇÃO DO EVENT STUDY
-iplot(feols(modelo.feols, data = df.match %>% filter(turno == 1)))
-iplot(feols(modelo.feols.controle, data = df.match %>% filter(turno == 1)))
-
-#VISUALIZAÇÃO DO EVENT STUDY
-iplot(list(
-  feols(modelo.feols, data = df.match %>% filter(turno == 1)),
-  feols(modelo.feols, data = df.match %>% filter(turno == 2))
-))
-
-iplot(list(
+  feols(modelo.feols, data = df.match %>% filter(turno == 2)),
   feols(modelo.feols.controle, data = df.match %>% filter(turno == 1)),
   feols(modelo.feols.controle, data = df.match %>% filter(turno == 2))
-))
-
-
-#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
-
-# EFEITO HETEROGÊNEO COM PROPENSITY GERAL
-
-#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
-
-df.test <- df.match %>% 
-  mutate(quantil = factor(ntile(.$pib_pc,4)),
-         trat = (tratamento == 1) * (ano == 2022))
-
-modelo.feols.controle.heterogen <- log(abstencao) ~ 
-  log(competitividade) + log(pib_pc) + log(beneficiados) + ideb + log(populacao) +
-  log(pib_governo) + log(eleitores_secao) + trat * factor(ntile(pib_pc,5))| id_municipio + ano
-
-#TABELA DE RESULTADOS
-modelsummary(
-  feols(modelo.feols.controle.heterogen, data = df.test %>% filter(turno == 2)), 
-# stars = T,
-statistic = "({p.value})",
-estimate = "{estimate} {stars}",
-# statistic = NULL,
+), 
+stars = c('*' = .05),
+# statistic = "()",
+estimate = "{estimate} ({p.value}) {stars}",
+statistic = NULL,
 coef_rename = c("log(pib_pc)" = "log(PIB per capita)"),
-gof_omit = "AIC|BIC|F|Lik|Std.Errors|RMSE")
+gof_omit = "AIC|BIC|F|Lik|Std.Errors|RMSE",
+output = 'latex') 
 
-iplot(list(
-  feols(modelo.feols.controle, data = df.test %>% filter(turno == 1 & quantil == 1)),
-  feols(modelo.feols.controle, data = df.test %>% filter(turno == 1 & quantil == 2)),
-  feols(modelo.feols.controle, data = df.test %>% filter(turno == 1 & quantil == 3)),
-  feols(modelo.feols.controle, data = df.test %>% filter(turno == 1 & quantil == 4))
-))
 
-iplot(list(
-  feols(modelo.feols.controle, data = df.test %>% filter(turno == 2 & quantil == 1)),
-  feols(modelo.feols.controle, data = df.test %>% filter(turno == 2 & quantil == 2)),
-  feols(modelo.feols.controle, data = df.test %>% filter(turno == 2 & quantil == 3)),
-  feols(modelo.feols.controle, data = df.test %>% filter(turno == 2 & quantil == 4))
-))
+modelos <- list(
+  feols(modelo.feols.controle, data = df.match %>% filter(turno == 1)),
+  feols(modelo.feols.controle, data = df.match %>% filter(turno == 2))
+)
+
+gg <- modelplot(modelos, 
+                conf_level = 0.95,
+                coef_omit = "^(?!ano)", 
+                coef_rename = c("ano::2022:tratamento" = "2022",
+                                "ano::2014:tratamento" = "2014",
+                                "ano::2010:tratamento" = "2010",
+                                "ano::2006:tratamento" = "2006"),
+                add_rows = data.frame(
+                  term = "2018",
+                  model = c("(1)", "(2)"),
+                  estimate = 0)) +
+  geom_vline(xintercept = 0, alpha = 0.5, linetype = "dotted") +
+  scale_y_discrete(limits = c("2006", "2010", "2014", "2018", "2022")) + 
+  coord_flip() +
+  scale_color_manual(values = c("#5C5B60", "#D28673")) +
+  labs(x = "Coeficiente estimado com 95% de confiança",
+       y = "Ano") +
+  theme_grey() +
+  theme(legend.position = "none")
+
+gg
+
+ggsave("output/event_study.png", gg, dpi = 600)
+
 
 
 #--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
 
-# EFEITO HETEROGÊNEO COM PROPENSITY INDIVIDUAL
+# EFEITO HETEROGÊNEO
 
 #--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#--#
 
-quantiles = 3
 
-df.match.segmented <- data.frame()
-for (quantil.i in c(1:quantiles)) {
-  df.match.segmented <- df.match.segmented %>% 
-    bind_rows(
-      matchit(update(modelo.psm, . * (quantil == quantil.i) ~ .), 
-              data=df.psm %>% filter(turno == 2) %>% mutate(quantil = factor(ntile(.$pib_pc,quantiles))), 
-              link="probit", replace = T) %>% 
-        get_matches(distance = "propscore", data=df.psm %>% filter(turno == 2)) %>% 
-        select(id_municipio) %>% 
-        left_join(df.A %>% filter(turno == 2)) %>% 
-        mutate(group = quantil.i)
-    )
-}
+df.het <- df.match %>% 
+  mutate(quantil = factor(ntile(.$pib_pc,4)))
 
-#Balanceamento depois do propensity
-df.psm %>% 
-  filter(turno == 2) %>% 
-  mutate(quantil = factor(ntile(.$pib_pc,quantiles))) %>% 
-  semi_join(df.match.segmented, by = "id_municipio") %>% 
-  mutate(ps = predict(glm(modelo.psm, data = ., family = binomial(link = "logit")), type = "response")) %>% 
-  ggplot() +
-  geom_density(aes(ps, fill = tratamento), alpha = .7) +
-  facet_wrap("quantil")
+modelos.1t <- list(
+  feols(modelo.feols.controle, data = df.het %>% filter(turno == 1 & quantil == 1)),
+  feols(modelo.feols.controle, data = df.het %>% filter(turno == 1 & quantil == 2)),
+  feols(modelo.feols.controle, data = df.het %>% filter(turno == 1 & quantil == 3)),
+  feols(modelo.feols.controle, data = df.het %>% filter(turno == 1 & quantil == 4))
+)
 
-iplot(list(
-  feols(modelo.feols, data = df.match.segmented %>% filter(turno == 2 & group == 1)),
-  feols(modelo.feols, data = df.match.segmented %>% filter(turno == 2 & group == 2)),
-  feols(modelo.feols, data = df.match.segmented %>% filter(turno == 2 & group == 3)),
-  feols(modelo.feols, data = df.match.segmented %>% filter(turno == 2 & group == 4)),
-  feols(modelo.feols, data = df.match.segmented %>% filter(turno == 2 & group == 5))
-))
+modelos.2t <- list(
+  feols(modelo.feols.controle, data = df.het %>% filter(turno == 2 & quantil == 1)),
+  feols(modelo.feols.controle, data = df.het %>% filter(turno == 2 & quantil == 2)),
+  feols(modelo.feols.controle, data = df.het %>% filter(turno == 2 & quantil == 3)),
+  feols(modelo.feols.controle, data = df.het %>% filter(turno == 2 & quantil == 4))
+)
 
-iplot(list(
-  feols(modelo.feols.controle, data = df.match.segmented %>% filter(turno == 2 & group == 1)),
-  feols(modelo.feols.controle, data = df.match.segmented %>% filter(turno == 2 & group == 2)),
-  # feols(modelo.feols.controle, data = df.match.segmented %>% filter(turno == 2 & group == 3)),
-  # feols(modelo.feols.controle, data = df.match.segmented %>% filter(turno == 2 & group == 4)),
-  feols(modelo.feols.controle, data = df.match.segmented %>% filter(turno == 2 & group == 3))
-))
+gg <- modelplot(modelos.1t, 
+                conf_level = 0.95,
+                coef_omit = "^(?!ano)", 
+                coef_rename = c("ano::2022:tratamento" = "2022",
+                                "ano::2014:tratamento" = "2014",
+                                "ano::2010:tratamento" = "2010",
+                                "ano::2006:tratamento" = "2006"),
+                add_rows = data.frame(
+                  term = "2018",
+                  model = c("(1)", "(2)","(3)","(4)"),
+                  estimate = 0)) +
+  geom_vline(xintercept = 0, alpha = 0.5, linetype = "dotted") +
+  scale_y_discrete(limits = c("2006", "2010", "2014", "2018", "2022")) + 
+  coord_flip() +
+  scale_color_manual(values = c("#3494BA", "#58B6C0", "#75BDA7", "#7A8C8E")) +
+  labs(x = "Coeficiente estimado com 95% de confiança",
+       y = "Ano") +
+  theme_grey() +
+  theme(legend.position = "none")
+
+gg
+
+ggsave("output/event_study_heter_1t.png", gg, dpi = 600)
+
+gg <- modelplot(modelos.2t, 
+                conf_level = 0.95,
+                coef_omit = "^(?!ano)", 
+                coef_rename = c("ano::2022:tratamento" = "2022",
+                                "ano::2014:tratamento" = "2014",
+                                "ano::2010:tratamento" = "2010",
+                                "ano::2006:tratamento" = "2006"),
+                add_rows = data.frame(
+                  term = "2018",
+                  model = c("(1)", "(2)","(3)","(4)"),
+                  estimate = 0)) +
+  geom_vline(xintercept = 0, alpha = 0.5, linetype = "dotted") +
+  scale_y_discrete(limits = c("2006", "2010", "2014", "2018", "2022")) + 
+  coord_flip() +
+  scale_color_manual(values = c("#3494BA", "#58B6C0", "#75BDA7", "#7A8C8E")) +
+  labs(x = "Coeficiente estimado com 95% de confiança",
+       y = "Ano") +
+  theme_grey() +
+  theme(legend.position = "none")
+
+gg
+
+ggsave("output/event_study_heter_2t.png", gg, dpi = 600)
 
