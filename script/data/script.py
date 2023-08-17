@@ -102,10 +102,22 @@ def frota():
 
     frota.to_csv("data/frota.csv")
 
+def psm():
+    query = '''
+        SELECT razao_dependencia, taxa_envelhecimento, expectativa_anos_estudo, 
+            taxa_analfabetismo_18_mais, indice_gini, prop_pobreza_extrema, renda_pc,
+            taxa_desocupacao_18_mais, taxa_ocupados_carteira, taxa_agua_encanada, populacao,
+            populacao_urbana, populacao_rural, idhm
+        FROM `basedosdados.mundo_onu_adh.municipio` 
+        WHERE ano = 2010
+        LIMIT 10000
+    '''
+    bd.read_sql(query, billing_project_id="python-371123").to_csv("output/psm.csv")
+
 def download_bd():
     """Efetua o download de todas as bases necessarias"""
 
-    bases = [abstencao, competitividade, ideb, pib, populacao]
+    bases = [abstencao, competitividade, ideb, pib, populacao, psm]
     
     for base in bases:
         print(str(base))
@@ -146,6 +158,6 @@ def merge():
      )
 
 
-# download_bd()
+download_bd()
 controle_tratamento()
 merge()
